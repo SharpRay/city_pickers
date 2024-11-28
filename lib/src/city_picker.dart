@@ -137,6 +137,7 @@ class CityPickers {
 
   static Future<Result?> showCitiesSelector({
     required BuildContext context,
+    required void Function() relocateFunc,
     ThemeData? theme,
     String? locationCode,
     String title = '城市选择器',
@@ -199,6 +200,7 @@ class CityPickers {
               cities: cities,
               hotCities: hotCities,
               locationCode: locationCode,
+              relocateFunc: relocateFunc,
               tagBarActiveColor: _sideBarStyle.backgroundActiveColor!,
               tagBarFontActiveColor: _sideBarStyle.activeColor!,
               tagBarBgColor: _sideBarStyle.backgroundColor!,
