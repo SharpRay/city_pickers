@@ -8,20 +8,16 @@
 //
 
 import 'dart:async';
-
 import 'dart:math' as math;
+
 import 'package:collection/collection.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../city_pickers.dart';
 import '../../meta/province.dart';
-import '../../modal/point.dart';
-import '../../modal/result.dart';
-import '../util.dart';
 import 'alpha.dart';
-import 'utils.dart';
 
 export 'cities_style.dart';
 
@@ -43,8 +39,11 @@ class CitiesSelector extends StatefulWidget {
 
   final String? locationCode;
   final List<Point> cities;
-  
-  final void Function() relocateFunc;
+
+  final Widget Function(void Function(Result)) locateUserCityItemBuilder;
+  final Widget Function(void Function(Result)) hotCitiesItemBuilder;
+  final Point locateUserCityPoint;
+  final Point hotCitiesPoint;
 
   final List<HotCity>? hotCities;
 
@@ -86,7 +85,10 @@ class CitiesSelector extends StatefulWidget {
 
   CitiesSelector({
     this.locationCode,
-    required this.relocateFunc,
+    required this.locateUserCityItemBuilder,
+    required this.hotCitiesItemBuilder,
+    required this.locateUserCityPoint,
+    required this.hotCitiesPoint,
     required this.cities,
     this.hotCities,
     this.tagBarActiveColor = Colors.yellow,
@@ -107,88 +109,27 @@ class CitiesSelector extends StatefulWidget {
   });
 
   Widget buildCityItem(BuildContext context, Point city) {
-    CitiesSelector widget = this;
     // 这里使用code判断是否选择, 因为[widget.hotCities]和[widget.citiesData]有可能有相同code的城市
     // 此时他们应该都是选中状态
-    bool selected =
-        widget.locationCode != null && widget.locationCode == city.code;
+    bool selected = locationCode != null && locationCode == city.code;
     final theme = Theme.of(context);
-    
-    if (city.letter == '#') {
-      return Container(
-        padding: EdgeInsets.only(top: 10, bottom: 10, left: 20, right: 40),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(children: [
-            Transform.translate(offset: Offset(0, -2), child: 
-            Transform.rotate(
-                angle: 45 * (3.14 / 180), 
-                child: Icon(Icons.navigation_sharp, size: 18, color: Theme.of(context).colorScheme.secondary))),
-            const SizedBox(width: 6),
-            Text('北京', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))
-          ]),
-            TextButton(
-                onPressed: relocateFunc, 
-                child: Text('重新定位', style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.secondary)))
-          ]
-        ),
-      );
-    }
 
-    if (city.letter == '★') {
-      final hotCities = [
-        Result(cityName: '上海市', cityId: '310100'),
-        Result(cityName: '北京市', cityId: '110100'),
-        Result(cityName: '天津市', cityId: '120100'),
-        Result(cityName: '重庆市', cityId: '500100'),
-        Result(cityName: '杭州市', cityId: '330100'),
-        Result(cityName: '南京市', cityId: '320100'),
-        Result(cityName: '成都市', cityId: '510100'),
-        Result(cityName: '武汉市', cityId: '420100'),
-        Result(cityName: '宁波市', cityId: '330200'),
-        Result(cityName: '厦门市', cityId: '350200'),
-        Result(cityName: '苏州市', cityId: '320500'),
-        Result(cityName: '长沙市', cityId: '430100')
-      ];
-      return Container(
-        padding: EdgeInsets.only(top: 20, bottom: 20, left: 20, right: 40),
-        height: (MediaQuery.of(context).size.width - 60 - 20) / 3 / 2.5 * 4 + 30 + 40 + 10,
-        child: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 15,
-            mainAxisSpacing: 15,
-            childAspectRatio: 2.5
-          ),
-          itemCount: 12,
-          itemBuilder: (context, index) {
-            return Container(
-              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.4),
-              child: Center(
-                child: GestureDetector(
-              onTap: () {
-                widget.onSelected(hotCities[index]);
-              },
-              child: Text(
-                  hotCities[index].cityName!,
-                  style: TextStyle(color: Theme.of(context).hintColor),
-                ),
-              )),
-            );
-          }
-        ),
-      );
-    }
+//    if (city.code == SpecialPointType.locateUserCityPoint.index.toString()) {
+//      return locateUserCityItemBuilder(userCity, onSelected);
+//    }
+//
+//    if (city.code == SpecialPointType.hotCitiesPoint.index.toString()) {
+//      return hotCitiesItemBuilder(onSelected);
+//    }
 
     return ListTileTheme(
-      selectedColor: widget.itemSelectFontColor ?? theme.colorScheme.primary,
-      textColor: widget.itemFontColor ?? theme.colorScheme.secondary,
+      selectedColor: itemSelectFontColor ?? theme.colorScheme.primary,
+      textColor: itemFontColor ?? theme.colorScheme.secondary,
       child: ListTile(
         selected: selected,
-        title: Text(city.name, style: TextStyle(fontSize: widget.itemFontSize)),
+        title: Text(city.name, style: TextStyle(fontSize: itemFontSize)),
         onTap: () {
-          widget.onSelected(_createResult(city));
+          onSelected(_createResult(city));
         },
       ),
     );
@@ -220,16 +161,18 @@ class _CitiesSelectorState extends State<CitiesSelector> {
     super.initState();
     _cities = [
       //if (widget.hotCities != null)
-        //...widget.hotCities!.map((e) => Point(
-        //      code: e.id,
-        //      letter: e.tag,
-        //      name: e.name,
-        //      children: [],
-        //    )),
-        ...[
-          Point(code: '0', letter: '#', name: '当前位置', children: []),
-          Point(code: '1', letter: '★', name: '热门城市', children: []),
-        ],
+      //...widget.hotCities!.map((e) => Point(
+      //      code: e.id,
+      //      letter: e.tag,
+      //      name: e.name,
+      //      children: [],
+      //    )),
+      //...[
+      //Point(code: '0', letter: '#', name: '当前位置', children: []),
+      //Point(code: '1', letter: '★', name: '热门城市', children: []),
+      //],
+      widget.locateUserCityPoint,
+      widget.hotCitiesPoint,
       ...widget.cities,
     ];
 
@@ -376,19 +319,31 @@ class _CitiesSelectorState extends State<CitiesSelector> {
                 color: widget.topIndexBgColor,
                 child: Text(
                   //_cities[index].letter ?? "",
-                  _cities[index].letter == '★' || _cities[index].letter == '#' ? _cities[index].name : (_cities[index].letter ?? ''),
+                  _cities[index].code ==
+                              SpecialPointType.locateUserCityPoint.index
+                                  .toString() ||
+                          _cities[index].code ==
+                              SpecialPointType.hotCitiesPoint.index.toString()
+                      ? _cities[index].name
+                      : (_cities[index].letter ?? ''),
                   softWrap: true,
                   style: TextStyle(
                       fontSize: widget.topIndexFontSize,
-                      color: widget.topIndexFontColor
-                  ),
+                      color: widget.topIndexFontColor),
                 ),
               ),
             ),
             Container(
               alignment: Alignment.centerLeft,
               child: Center(
-                child: widget.buildCityItem(context, _cities[index]),
+                //child: widget.buildCityItem(context, _cities[index]),
+                child: _cities[index].code ==
+                        SpecialPointType.locateUserCityPoint.index.toString()
+                    ? widget.locateUserCityItemBuilder(widget.onSelected)
+                    : (_cities[index].code ==
+                            SpecialPointType.hotCitiesPoint.index.toString()
+                        ? widget.hotCitiesItemBuilder(widget.onSelected)
+                        : widget.buildCityItem(context, _cities[index])),
               ),
             )
           ],
@@ -405,7 +360,12 @@ class _CitiesSelectorState extends State<CitiesSelector> {
           final firstPosition = positions.firstOrNull;
           final tagName = firstPosition == null
               ? null
-              : _cities[firstPosition.index].letter == '★' || _cities[firstPosition.index].letter == '#' ? _cities[firstPosition.index].name : _cities[firstPosition.index].letter;
+              : _cities[firstPosition.index].code ==
+                          SpecialPointType.hotCitiesPoint.index.toString() ||
+                      _cities[firstPosition.index].code ==
+                          SpecialPointType.locateUserCityPoint.index.toString()
+                  ? _cities[firstPosition.index].name
+                  : _cities[firstPosition.index].letter;
 
           final firstFullyVisibleTagPosition = positions.firstWhereOrNull(
               (it) =>
@@ -433,10 +393,9 @@ class _CitiesSelectorState extends State<CitiesSelector> {
                   tagName ?? _tagList.first,
                   softWrap: true,
                   style: TextStyle(
-                    fontSize: widget.topIndexFontSize,
-                    color: widget.topIndexFontColor,
-                    fontWeight: FontWeight.w600
-                  ),
+                      fontSize: widget.topIndexFontSize,
+                      color: widget.topIndexFontColor,
+                      fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -468,6 +427,7 @@ class CitiesSelectorPage extends StatefulWidget {
     this.scaffoldBackgroundColor,
     this.appBarBuilder,
     this.useSearchAppBar = false,
+    this.searchBarBuilder,
     this.provincesData,
     this.citiesData,
   })  : assert(!(useSearchAppBar && appBarBuilder != null)),
@@ -483,6 +443,7 @@ class CitiesSelectorPage extends StatefulWidget {
   final String title;
   final AppBarBuilder? appBarBuilder;
   final bool useSearchAppBar;
+  final AppBar Function(void Function(String))? searchBarBuilder;
 
   @override
   State<CitiesSelectorPage> createState() => _CitiesSelectorPageState();
@@ -510,59 +471,11 @@ class _CitiesSelectorPageState extends State<CitiesSelectorPage> {
     return Scaffold(
       backgroundColor: widget.scaffoldBackgroundColor,
       appBar: widget.useSearchAppBar
-          ? AppBar(
-              automaticallyImplyLeading: false,
-              scrolledUnderElevation: 0,
-              elevation: 0,
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              titleSpacing: 0,
-              title: Padding(
-                padding: EdgeInsetsDirectional.only(start: 16.0),
-                child: TextField(
-                  //prefixInsets: EdgeInsetsDirectional.only(start: 6),
-                  textInputAction: TextInputAction.search,
-                  style: TextStyle(fontSize: 15),
-                  cursorColor: Colors.deepPurple[200],
-                  cursorWidth: 1,
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.search, color: Theme.of(context).hintColor.withOpacity(0.3)),
-                    counterText: '',
-                    labelText: '请输入城市名或拼音',
-                    floatingLabelBehavior: FloatingLabelBehavior.never,
-                    labelStyle: TextStyle(fontSize: 15, color: Theme.of(context).hintColor),
-                    contentPadding: const EdgeInsets.all(5),
-                    filled: true,
-                    fillColor: Colors.white54,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                      borderSide: const BorderSide(
-                        color: Colors.transparent,
-                        width: 0
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                      borderSide: BorderSide(
-                          color: Colors.deepPurple[900]!,
-                          width: 0.5
-                      ),
-                    )
-                  ),
-                  //placeholder: '输入城市名或拼音查询',
-                  onChanged: (value) {
-                    setState(() {
-                      _query = value;
-                    });
-                  },
-                ),
-              ),
-              actions: [
-                CupertinoButton(
-                  child: Text('取消', style: TextStyle(fontSize: 15, color: Theme.of(context).hintColor)),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            )
+          ? widget.searchBarBuilder!((value) {
+              setState(() {
+                _query = value;
+              });
+            })
           : _buildAppBar(),
       resizeToAvoidBottomInset: !widget.useSearchAppBar,
       body: SafeArea(

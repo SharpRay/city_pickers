@@ -1,12 +1,15 @@
 import 'dart:core';
+
 import 'package:city_pickers/src/base/base.dart';
 import 'package:city_pickers/src/cities_selector/cities_selector.dart';
 import 'package:city_pickers/src/cities_selector/utils.dart';
 import 'package:city_pickers/src/full_page/full_page.dart';
-import 'package:flutter/material.dart';
 import 'package:city_pickers/src/utils/index.dart';
+import 'package:flutter/material.dart';
+import 'package:keyboard_dismisser/keyboard_dismisser.dart';
 
 import '../meta/province.dart' as meta;
+import '../modal/point.dart';
 import '../modal/result.dart';
 import './util.dart';
 import 'mod/picker_popup_route.dart';
@@ -23,6 +26,12 @@ import 'show_types.dart';
 /// );
 ///
 /// ```
+///
+
+enum SpecialPointType {
+  locateUserCityPoint,
+  hotCitiesPoint,
+}
 
 class CityPickers {
   /// static original city data for this plugin
@@ -137,7 +146,11 @@ class CityPickers {
 
   static Future<Result?> showCitiesSelector({
     required BuildContext context,
-    required void Function() relocateFunc,
+    required Widget Function(void Function(Result)) locateUserCityItemBuilder,
+    required Widget Function(void Function(Result)) hotCitiesItemBuilder,
+    AppBar Function(void Function(String))? searchBarBuilder,
+    required Point locateUserCityPoint,
+    required Point hotCitiesPoint,
     ThemeData? theme,
     String? locationCode,
     String title = '城市选择器',
@@ -187,37 +200,43 @@ class CityPickers {
       new PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 250),
         pageBuilder: (context, _, __) => new Theme(
-          data: theme ?? Theme.of(context),
-          child: CitiesSelectorPage(
-            title: title,
-            appBarBuilder: appBarBuilder,
-            scaffoldBackgroundColor:
-                scaffoldBackgroundColor ?? defaultScaffoldBackgroundColor,
-            useSearchAppBar: useSearchAppBar,
-            provincesData: provincesData,
-            citiesData: citiesData,
-            buildCitiesSelector: (context, cities) => CitiesSelector(
-              cities: cities,
-              hotCities: hotCities,
-              locationCode: locationCode,
-              relocateFunc: relocateFunc,
-              tagBarActiveColor: _sideBarStyle.backgroundActiveColor!,
-              tagBarFontActiveColor: _sideBarStyle.activeColor!,
-              tagBarBgColor: _sideBarStyle.backgroundColor!,
-              tagBarFontColor: _sideBarStyle.color,
-              tagBarFontSize: _sideBarStyle.fontSize,
-              tagBarTextPadding: tagBarTextPadding,
-              topIndexFontSize: _topStickStyle.fontSize,
-              topIndexHeight: _topStickStyle.height!,
-              topIndexFontColor: _topStickStyle.color,
-              topIndexBgColor: _topStickStyle.backgroundColor!,
-              itemFontColor: _cityItemStyle.color,
-              itemFontSize: _cityItemStyle.fontSize,
-              itemSelectFontColor: _cityItemStyle.activeColor,
-              onSelected: (value) => Navigator.pop(context, value),
-            ),
-          ),
-        ),
+            data: theme ?? Theme.of(context),
+            child: KeyboardDismisser(
+              gestures: const [GestureType.onTap],
+              child: CitiesSelectorPage(
+                title: title,
+                appBarBuilder: appBarBuilder,
+                scaffoldBackgroundColor:
+                    scaffoldBackgroundColor ?? defaultScaffoldBackgroundColor,
+                useSearchAppBar: useSearchAppBar,
+                searchBarBuilder: searchBarBuilder,
+                provincesData: provincesData,
+                citiesData: citiesData,
+                buildCitiesSelector: (context, cities) => CitiesSelector(
+                  cities: cities,
+                  hotCities: hotCities,
+                  locationCode: locationCode,
+                  locateUserCityItemBuilder: locateUserCityItemBuilder,
+                  hotCitiesItemBuilder: hotCitiesItemBuilder,
+                  locateUserCityPoint: locateUserCityPoint,
+                  hotCitiesPoint: hotCitiesPoint,
+                  tagBarActiveColor: _sideBarStyle.backgroundActiveColor!,
+                  tagBarFontActiveColor: _sideBarStyle.activeColor!,
+                  tagBarBgColor: _sideBarStyle.backgroundColor!,
+                  tagBarFontColor: _sideBarStyle.color,
+                  tagBarFontSize: _sideBarStyle.fontSize,
+                  tagBarTextPadding: tagBarTextPadding,
+                  topIndexFontSize: _topStickStyle.fontSize,
+                  topIndexHeight: _topStickStyle.height!,
+                  topIndexFontColor: _topStickStyle.color,
+                  topIndexBgColor: _topStickStyle.backgroundColor!,
+                  itemFontColor: _cityItemStyle.color,
+                  itemFontSize: _cityItemStyle.fontSize,
+                  itemSelectFontColor: _cityItemStyle.activeColor,
+                  onSelected: (value) => Navigator.pop(context, value),
+                ),
+              ),
+            )),
         transitionsBuilder:
             (_, Animation<double> animation, __, Widget child) =>
                 new SlideTransition(
