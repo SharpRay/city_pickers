@@ -4248,7 +4248,7 @@ const Map<String, dynamic> citiesData = {
     "810118": {"name": "离岛区", "alpha": "l"}
   },
   "820000": {
-    "820100": {"name": "澳门城区", "alpha": "a"}
+    "820100": {"name": "澳门特别行政区", "alpha": "a"}
   },
   "820100": {
     "820101": {"name": "花地玛堂区", "alpha": "h"},
